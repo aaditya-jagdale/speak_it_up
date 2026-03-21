@@ -3,7 +3,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:speak_it_up/home/screens/timer_screen.dart';
 import 'package:speak_it_up/shared/widgets/colors.dart';
+import 'package:speak_it_up/shared/widgets/transitions.dart';
 
 /// List of topics shown in the slot machine
 const List<String> _topics = [
@@ -40,7 +42,6 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   // ── slot machine state ──────────────────────────────────────────────
   int _currentIndex = 0;
   bool _isSpinning = false;
-
   late final AnimationController _reelController;
   late final Animation<double> _reelAnim;
 
@@ -68,20 +69,38 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   String _topic(int offset) =>
       _topics[(_currentIndex + offset + _topics.length * 10) % _topics.length];
 
+  // ── Per-tick hook ─────────────────────────────────────────────────────
+  // Called once for every slot tick during a spin.
+  // [tick]  : 0-based index of the current tick
+  // [total] : total number of ticks in this spin
+  // Add more effects here freely — haptics, visuals, counters, etc.
+  Future<void> _onSpinTick(int tick, int total) async {
+    HapticFeedback.lightImpact();
+  }
+
   Future<void> _spin() async {
     if (_isSpinning) return;
     HapticFeedback.mediumImpact();
     setState(() => _isSpinning = true);
 
-    // Accelerate then decelerate — 14 ticks total
-    const int totalTicks = 14;
+    // ── Spin speed ──────────────────────────────────────────────────────
+    // Increase _spinSpeedScale to slow down, decrease to speed up.
+    // 1.0 = base speed, 2.0 = twice as slow, 0.5 = twice as fast.
+    const double _spinSpeedScale = 2.5;
+
+    // Accelerate then decelerate
+    const int totalTicks = 10;
     for (int i = 0; i < totalTicks; i++) {
-      // Speed curve: fast in middle, slow at start and end
-      final int delayMs = i < 4
-          ? (160 - i * 20).clamp(60, 160)
-          : i > 10
-          ? (60 + (i - 10) * 40).clamp(60, 260)
-          : 60;
+      // Speed curve: slow start → fast middle → slow end
+      final int baseDelayMs = i < 3
+          ? (180 - i * 30).clamp(80, 180)
+          : i > 6
+          ? (80 + (i - 6) * 60).clamp(80, 300)
+          : 80;
+      final int delayMs = (baseDelayMs * _spinSpeedScale).round();
+
+      // ── Fire all per-tick effects ──────────────────────────────
+      unawaited(_onSpinTick(i, totalTicks));
 
       _reelController.reset();
       _reelController.duration = Duration(milliseconds: delayMs);
@@ -207,17 +226,20 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       ('03', 'Speak'),
     ];
 
-    return Row(
-      children: steps.asMap().entries.map((entry) {
-        final isLast = entry.key == steps.length - 1;
-        final step = entry.value;
-        return Expanded(
-          child: Padding(
-            padding: EdgeInsets.only(right: isLast ? 0 : 8),
-            child: _StepCard(number: step.$1, label: step.$2),
-          ),
-        );
-      }).toList(),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        children: steps.asMap().entries.map((entry) {
+          final isLast = entry.key == steps.length - 1;
+          final step = entry.value;
+          return Expanded(
+            child: Padding(
+              padding: EdgeInsets.only(right: isLast ? 0 : 8),
+              child: _StepCard(number: step.$1, label: step.$2),
+            ),
+          );
+        }).toList(),
+      ),
     );
   }
 
@@ -283,8 +305,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             textAlign: TextAlign.center,
             style: TextStyle(
               fontFamily: 'geist',
-              fontSize: isActive ? 16 : 12,
-              fontWeight: isActive ? FontWeight.w500 : FontWeight.w400,
+              fontSize: isActive ? 18 : 14,
+              fontWeight: isActive ? FontWeight.w700 : FontWeight.w400,
               color: isActive ? AppColors.primary : const Color(0xFFBBBBBB),
             ),
           ),
@@ -310,7 +332,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             label: 'Timer',
             onTap: () {
               HapticFeedback.lightImpact();
-              // TODO: open timer
+              upSlideTransition(
+                context,
+                TimerScreen(topic: _topics[_currentIndex]),
+              );
             },
           ),
         ),
