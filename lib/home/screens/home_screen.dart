@@ -3,7 +3,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:speak_it_up/home/screens/timer_screen.dart';
 import 'package:speak_it_up/shared/widgets/colors.dart';
+import 'package:speak_it_up/shared/widgets/transitions.dart';
 
 /// List of topics shown in the slot machine
 const List<String> _topics = [
@@ -36,34 +38,81 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen>
-    with SingleTickerProviderStateMixin {
+class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   // ── slot machine state ──────────────────────────────────────────────
   int _currentIndex = 0;
   bool _isSpinning = false;
+  late final AnimationController _reelController;
+  late final Animation<double> _reelAnim;
+
+  static const double _itemHeight = 60.0;
+
+  @override
+  void initState() {
+    super.initState();
+    _reelController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 120),
+    );
+    _reelAnim = Tween<double>(begin: 0, end: -_itemHeight).animate(
+      CurvedAnimation(parent: _reelController, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _reelController.dispose();
+    super.dispose();
+  }
 
   // ── helpers ─────────────────────────────────────────────────────────
-  String get _prevTopic =>
-      _topics[(_currentIndex - 1 + _topics.length) % _topics.length];
-  String get _currentTopic => _topics[_currentIndex];
-  String get _nextTopic => _topics[(_currentIndex + 1) % _topics.length];
+  String _topic(int offset) =>
+      _topics[(_currentIndex + offset + _topics.length * 10) % _topics.length];
+
+  // ── Per-tick hook ─────────────────────────────────────────────────────
+  // Called once for every slot tick during a spin.
+  // [tick]  : 0-based index of the current tick
+  // [total] : total number of ticks in this spin
+  // Add more effects here freely — haptics, visuals, counters, etc.
+  Future<void> _onSpinTick(int tick, int total) async {
+    HapticFeedback.lightImpact();
+  }
 
   Future<void> _spin() async {
     if (_isSpinning) return;
     HapticFeedback.mediumImpact();
     setState(() => _isSpinning = true);
 
-    // Run several fast spins then settle
-    const int totalTicks = 12;
+    // ── Spin speed ──────────────────────────────────────────────────────
+    // Increase _spinSpeedScale to slow down, decrease to speed up.
+    // 1.0 = base speed, 2.0 = twice as slow, 0.5 = twice as fast.
+    const double _spinSpeedScale = 2.5;
+
+    // Accelerate then decelerate
+    const int totalTicks = 10;
     for (int i = 0; i < totalTicks; i++) {
-      await Future.delayed(Duration(milliseconds: 50 + (i * 12).clamp(0, 200)));
+      // Speed curve: slow start → fast middle → slow end
+      final int baseDelayMs = i < 3
+          ? (180 - i * 30).clamp(80, 180)
+          : i > 6
+          ? (80 + (i - 6) * 60).clamp(80, 300)
+          : 80;
+      final int delayMs = (baseDelayMs * _spinSpeedScale).round();
+
+      // ── Fire all per-tick effects ──────────────────────────────
+      unawaited(_onSpinTick(i, totalTicks));
+
+      _reelController.reset();
+      _reelController.duration = Duration(milliseconds: delayMs);
+      await _reelController.forward();
+
       if (!mounted) return;
       setState(() {
         _currentIndex = (_currentIndex + 1) % _topics.length;
       });
+      _reelController.reset();
     }
 
-    await Future.delayed(const Duration(milliseconds: 80));
     HapticFeedback.lightImpact();
     if (!mounted) return;
     setState(() => _isSpinning = false);
@@ -177,118 +226,89 @@ class _HomeScreenState extends State<HomeScreen>
       ('03', 'Speak'),
     ];
 
-    return Row(
-      children: steps.asMap().entries.map((entry) {
-        final isLast = entry.key == steps.length - 1;
-        final step = entry.value;
-        return Expanded(
-          child: Padding(
-            padding: EdgeInsets.only(right: isLast ? 0 : 8),
-            child: _StepCard(number: step.$1, label: step.$2),
-          ),
-        );
-      }).toList(),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Row(
+        children: steps.asMap().entries.map((entry) {
+          final isLast = entry.key == steps.length - 1;
+          final step = entry.value;
+          return Expanded(
+            child: Padding(
+              padding: EdgeInsets.only(right: isLast ? 0 : 8),
+              child: _StepCard(number: step.$1, label: step.$2),
+            ),
+          );
+        }).toList(),
+      ),
     );
   }
 
   Widget _buildSlotMachine() {
-    const double itemHeight = 60.0;
-    const double visibleHeight = 180.0;
+    const double visibleHeight = _itemHeight * 3;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: ClipRect(
-        child: SizedBox(
-          height: visibleHeight,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              // Ghost row above
-              SizedBox(
-                height: itemHeight,
-                child: Center(
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 80),
-                    child: Text(
-                      _prevTopic,
-                      key: ValueKey('prev_$_currentIndex'),
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontFamily: 'geist',
-                        fontSize: 14,
-                        fontWeight: FontWeight.w400,
-                        color: Color(0xFFBBBBBB),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-
-              // Active row (highlighted card)
-              Container(
-                height: itemHeight,
+      child: SizedBox(
+        height: visibleHeight,
+        child: Stack(
+          children: [
+            // ── Active row highlight (fixed, behind the reel) ──────────
+            Positioned(
+              top: _itemHeight,
+              left: 0,
+              right: 0,
+              height: _itemHeight,
+              child: Container(
                 decoration: BoxDecoration(
                   color: AppColors.primary10,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Center(
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 80),
-                    transitionBuilder: (child, animation) {
-                      final slide =
-                          Tween<Offset>(
-                            begin: const Offset(0, 0.5),
-                            end: Offset.zero,
-                          ).animate(
-                            CurvedAnimation(
-                              parent: animation,
-                              curve: Curves.easeOut,
-                            ),
-                          );
-                      return FadeTransition(
-                        opacity: animation,
-                        child: SlideTransition(position: slide, child: child),
-                      );
-                    },
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Text(
-                        _currentTopic,
-                        key: ValueKey('curr_$_currentIndex'),
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontFamily: 'geist',
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
-                          color: AppColors.primary,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
               ),
+            ),
 
-              // Ghost row below
-              SizedBox(
-                height: itemHeight,
-                child: Center(
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 80),
-                    child: Text(
-                      _nextTopic,
-                      key: ValueKey('next_$_currentIndex'),
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        fontFamily: 'geist',
-                        fontSize: 14,
-                        fontWeight: FontWeight.w400,
-                        color: Color(0xFFBBBBBB),
-                      ),
+            // ── Scrolling reel (clipped to 3 rows) ────────────────────
+            ClipRect(
+              child: AnimatedBuilder(
+                animation: _reelAnim,
+                builder: (context, _) {
+                  return Transform.translate(
+                    offset: Offset(0, _reelAnim.value),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        // We render 4 slots so the 4th is visible sliding in
+                        // during the last frame: prev, current, next, nextNext
+                        _buildReelItem(_topic(-1), isActive: false),
+                        _buildReelItem(_topic(0), isActive: true),
+                        _buildReelItem(_topic(1), isActive: false),
+                        // _buildReelItem(_topic(2), isActive: false),
+                      ],
                     ),
-                  ),
-                ),
+                  );
+                },
               ),
-            ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildReelItem(String text, {required bool isActive}) {
+    return SizedBox(
+      height: _itemHeight,
+      child: Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16),
+          child: Text(
+            text,
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontFamily: 'geist',
+              fontSize: isActive ? 18 : 14,
+              fontWeight: isActive ? FontWeight.w700 : FontWeight.w400,
+              color: isActive ? AppColors.primary : const Color(0xFFBBBBBB),
+            ),
           ),
         ),
       ),
@@ -312,7 +332,10 @@ class _HomeScreenState extends State<HomeScreen>
             label: 'Timer',
             onTap: () {
               HapticFeedback.lightImpact();
-              // TODO: open timer
+              upSlideTransition(
+                context,
+                TimerScreen(topic: _topics[_currentIndex]),
+              );
             },
           ),
         ),
@@ -341,13 +364,13 @@ class _StepCard extends StatelessWidget {
         border: Border.all(color: const Color(0xFFE0E0E0), width: 1),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           Text(
             number,
             style: const TextStyle(
-              fontFamily: 'geist',
-              fontSize: 14,
+              fontFamily: 'shrikhand',
+              fontSize: 18,
               fontWeight: FontWeight.w700,
               color: AppColors.primary,
             ),
