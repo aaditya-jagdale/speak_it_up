@@ -1,35 +1,19 @@
 import 'dart:async';
+import 'dart:math';
 
+import 'package:audioplayers/audioplayers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:speak_it_up/home/screens/settings_screen.dart';
 import 'package:speak_it_up/home/screens/timer_screen.dart';
+import 'package:speak_it_up/shared/services/settings_service.dart';
+import 'package:speak_it_up/shared/services/tts_service.dart';
+import 'package:speak_it_up/shared/services/update_service.dart';
+import 'package:speak_it_up/shared/topics.dart';
 import 'package:speak_it_up/shared/widgets/colors.dart';
+import 'package:speak_it_up/shared/widgets/snackbars.dart';
 import 'package:speak_it_up/shared/widgets/transitions.dart';
-
-/// List of topics shown in the slot machine
-const List<String> _topics = [
-  'Celebrating too early',
-  'Defending yourself',
-  'Just be yourself',
-  'Overcoming fear',
-  'Daily gratitude',
-  'Body language',
-  'Power of silence',
-  'Active listening',
-  'Storytelling tips',
-  'Eye contact skills',
-  'Handling criticism',
-  'Public speaking',
-  'Confidence hacks',
-  'Humor in speech',
-  'Persuasion tactics',
-  'Building rapport',
-  'Vocal tone tips',
-  'Nervousness cures',
-  'Impromptu speaking',
-  'Debate strategies',
-];
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -40,6 +24,8 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   // ── slot machine state ──────────────────────────────────────────────
+  // _shuffledList is reshuffled on every spin so all traversal is random.
+  late List<String> _shuffledList;
   int _currentIndex = 0;
   bool _isSpinning = false;
   late final AnimationController _reelController;
@@ -50,6 +36,11 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
+
+    // Randomise list order and pick a random starting topic
+    _shuffledList = List.from(topicsList)..shuffle();
+    _currentIndex = Random().nextInt(_shuffledList.length);
+
     _reelController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 120),
@@ -57,6 +48,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _reelAnim = Tween<double>(begin: 0, end: -_itemHeight).animate(
       CurvedAnimation(parent: _reelController, curve: Curves.easeInOut),
     );
+
+    if (mounted) {
+      UpdateService.instance.checkForUpdate(context);
+    }
   }
 
   @override
@@ -67,7 +62,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   // ── helpers ─────────────────────────────────────────────────────────
   String _topic(int offset) =>
-      _topics[(_currentIndex + offset + _topics.length * 10) % _topics.length];
+      _shuffledList[(_currentIndex + offset + _shuffledList.length * 10) %
+          _shuffledList.length];
 
   // ── Per-tick hook ─────────────────────────────────────────────────────
   // Called once for every slot tick during a spin.
@@ -75,18 +71,33 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   // [total] : total number of ticks in this spin
   // Add more effects here freely — haptics, visuals, counters, etc.
   Future<void> _onSpinTick(int tick, int total) async {
-    HapticFeedback.lightImpact();
+    if (SettingsService.instance.vibrationEnabled) {
+      HapticFeedback.lightImpact();
+    }
+  }
+
+  Future<void> _toggleSound(bool value) async {
+    if (SettingsService.instance.vibrationEnabled) HapticFeedback.lightImpact();
+    await SettingsService.instance.setSoundEnabled(value);
+    setState(() {});
   }
 
   Future<void> _spin() async {
     if (_isSpinning) return;
-    HapticFeedback.mediumImpact();
-    setState(() => _isSpinning = true);
+    if (SettingsService.instance.vibrationEnabled) {
+      HapticFeedback.mediumImpact();
+    }
+
+    // Reshuffle the list so every spin visits topics in a new random order
+    setState(() {
+      _shuffledList.shuffle();
+      _isSpinning = true;
+    });
 
     // ── Spin speed ──────────────────────────────────────────────────────
     // Increase _spinSpeedScale to slow down, decrease to speed up.
     // 1.0 = base speed, 2.0 = twice as slow, 0.5 = twice as fast.
-    const double _spinSpeedScale = 2.5;
+    const double spinSpeedScale = 2.5;
 
     // Accelerate then decelerate
     const int totalTicks = 10;
@@ -97,7 +108,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           : i > 6
           ? (80 + (i - 6) * 60).clamp(80, 300)
           : 80;
-      final int delayMs = (baseDelayMs * _spinSpeedScale).round();
+      final int delayMs = (baseDelayMs * spinSpeedScale).round();
 
       // ── Fire all per-tick effects ──────────────────────────────
       unawaited(_onSpinTick(i, totalTicks));
@@ -108,14 +119,23 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
       if (!mounted) return;
       setState(() {
-        _currentIndex = (_currentIndex + 1) % _topics.length;
+        _currentIndex = (_currentIndex + 1) % _shuffledList.length;
       });
       _reelController.reset();
     }
 
-    HapticFeedback.lightImpact();
+    if (SettingsService.instance.vibrationEnabled) {
+      HapticFeedback.lightImpact();
+    }
     if (!mounted) return;
     setState(() => _isSpinning = false);
+
+    // ── Announce winning topic via TTS ─────────────────────────────────
+    // Play sound effect assets/audio/sparkle.mp3
+    if (SettingsService.instance.soundEnabled) {
+      await AudioPlayer().play(AssetSource('audio/sparkle.mp3'));
+      await TtsService.instance.announceTopicAsync(_topic(0));
+    }
   }
 
   @override
@@ -127,30 +147,42 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         elevation: 0,
         scrolledUnderElevation: 0,
         actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: () {
+          IconButton(
+            onPressed: () {
+              if (SettingsService.instance.vibrationEnabled) {
                 HapticFeedback.lightImpact();
-                // TODO: open settings
-              },
-              child: SvgPicture.asset(
-                'assets/icons/settings.svg',
-                width: 24,
-                height: 24,
-                colorFilter: const ColorFilter.mode(
-                  Color(0xFF090909),
-                  BlendMode.srcIn,
-                ),
-              ),
-            ),
+              }
+              _toggleSound(!SettingsService.instance.soundEnabled);
+              infoSnackBar(
+                context,
+                "Sound ${SettingsService.instance.soundEnabled ? 'enabled' : 'disabled'}",
+              );
+            },
+            icon: SettingsService.instance.soundEnabled
+                ? SvgPicture.asset('assets/icons/volume_up.svg')
+                : SvgPicture.asset(
+                    'assets/icons/mute.svg',
+                    colorFilter: ColorFilter.mode(
+                      Colors.black38,
+                      BlendMode.srcIn,
+                    ),
+                  ),
           ),
+          IconButton(
+            onPressed: () {
+              if (SettingsService.instance.vibrationEnabled) {
+                HapticFeedback.lightImpact();
+              }
+              upSlideTransition(context, const SettingsScreen());
+            },
+            icon: SvgPicture.asset('assets/icons/settings.svg'),
+          ),
+          const SizedBox(width: 6),
         ],
       ),
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
+          padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             mainAxisAlignment: MainAxisAlignment.center,
@@ -229,15 +261,9 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16),
       child: Row(
-        children: steps.asMap().entries.map((entry) {
-          final isLast = entry.key == steps.length - 1;
-          final step = entry.value;
-          return Expanded(
-            child: Padding(
-              padding: EdgeInsets.only(right: isLast ? 0 : 8),
-              child: _StepCard(number: step.$1, label: step.$2),
-            ),
-          );
+        spacing: 8,
+        children: steps.map((step) {
+          return _StepCard(number: step.$1, label: step.$2);
         }).toList(),
       ),
     );
@@ -305,7 +331,8 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
             textAlign: TextAlign.center,
             style: TextStyle(
               fontFamily: 'geist',
-              fontSize: isActive ? 18 : 14,
+              fontSize: isActive ? 16 : 12,
+              height: 1,
               fontWeight: isActive ? FontWeight.w700 : FontWeight.w400,
               color: isActive ? AppColors.primary : const Color(0xFFBBBBBB),
             ),
@@ -331,11 +358,10 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           child: _OutlinedButton(
             label: 'Timer',
             onTap: () {
-              HapticFeedback.lightImpact();
-              upSlideTransition(
-                context,
-                TimerScreen(topic: _topics[_currentIndex]),
-              );
+              if (SettingsService.instance.vibrationEnabled) {
+                HapticFeedback.lightImpact();
+              }
+              upSlideTransition(context, TimerScreen(topic: _topic(0)));
             },
           ),
         ),
@@ -356,36 +382,38 @@ class _StepCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
-      decoration: BoxDecoration(
-        color: const Color(0xFFFAFAFA),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFFE0E0E0), width: 1),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Text(
-            number,
-            style: const TextStyle(
-              fontFamily: 'shrikhand',
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-              color: AppColors.primary,
+    return Expanded(
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: const Color(0xFFE0E0E0), width: 1),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            Text(
+              number,
+              style: const TextStyle(
+                fontFamily: 'shrikhand',
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: AppColors.primary,
+              ),
             ),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            label,
-            style: const TextStyle(
-              fontFamily: 'geist',
-              fontSize: 12,
-              fontWeight: FontWeight.w400,
-              color: Color(0xFF333333),
+            Text(
+              label,
+              style: const TextStyle(
+                fontFamily: 'geist',
+                fontSize: 12,
+                fontWeight: FontWeight.w400,
+                color: Color(0xFF333333),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

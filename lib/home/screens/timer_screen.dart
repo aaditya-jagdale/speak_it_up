@@ -3,12 +3,13 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:speak_it_up/shared/services/settings_service.dart';
 import 'package:speak_it_up/shared/widgets/colors.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Default timer duration (seconds)
 // ─────────────────────────────────────────────────────────────────────────────
-const int _kDefaultSeconds = 60;
+int _kDefaultSeconds = 60;
 
 class TimerScreen extends StatefulWidget {
   final String topic;
@@ -36,10 +37,10 @@ class _TimerScreenState extends State<TimerScreen>
   @override
   void initState() {
     super.initState();
-
+    _kDefaultSeconds = SettingsService.instance.timerDuration;
     _ringController = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: _kDefaultSeconds),
+      duration: Duration(seconds: _kDefaultSeconds),
     )..value = 1.0; // starts full
 
     _spinController = AnimationController(
@@ -49,6 +50,7 @@ class _TimerScreenState extends State<TimerScreen>
     _spinAnimation = Tween<double>(begin: 0, end: 2 * math.pi).animate(
       CurvedAnimation(parent: _spinController, curve: Curves.easeInOut),
     );
+    _resetTimer();
   }
 
   @override
@@ -77,7 +79,9 @@ class _TimerScreenState extends State<TimerScreen>
       _startTimer();
       return;
     }
-    HapticFeedback.mediumImpact();
+    if (SettingsService.instance.vibrationEnabled) {
+      HapticFeedback.mediumImpact();
+    }
     setState(() => _isRunning = true);
 
     // Animate ring from current progress to 0 over remaining time
@@ -99,14 +103,18 @@ class _TimerScreenState extends State<TimerScreen>
         } else {
           _isRunning = false;
           t.cancel();
-          HapticFeedback.heavyImpact();
+          if (SettingsService.instance.vibrationEnabled) {
+            HapticFeedback.heavyImpact();
+          }
         }
       });
     });
   }
 
   void _stopTimer() {
-    HapticFeedback.lightImpact();
+    if (SettingsService.instance.vibrationEnabled) {
+      HapticFeedback.lightImpact();
+    }
     _countdownTimer?.cancel();
     _ringController.stop();
     if (!mounted) return;
@@ -114,7 +122,9 @@ class _TimerScreenState extends State<TimerScreen>
   }
 
   void _adjustTime(int deltaSeconds) {
-    HapticFeedback.lightImpact();
+    if (SettingsService.instance.vibrationEnabled) {
+      HapticFeedback.lightImpact();
+    }
     _countdownTimer?.cancel();
     _ringController.stop();
     setState(() {
@@ -129,7 +139,9 @@ class _TimerScreenState extends State<TimerScreen>
   }
 
   void _resetTimer() {
-    HapticFeedback.mediumImpact();
+    if (SettingsService.instance.vibrationEnabled) {
+      HapticFeedback.mediumImpact();
+    }
     _countdownTimer?.cancel();
     _ringController.stop();
     setState(() {
@@ -141,7 +153,9 @@ class _TimerScreenState extends State<TimerScreen>
   }
 
   void _goNewTopic() {
-    HapticFeedback.mediumImpact();
+    if (SettingsService.instance.vibrationEnabled) {
+      HapticFeedback.mediumImpact();
+    }
     _spinController.forward(from: 0).then((_) {
       if (!mounted) return;
       Navigator.of(context).pop();
@@ -202,7 +216,9 @@ class _TimerScreenState extends State<TimerScreen>
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: () {
-          HapticFeedback.lightImpact();
+          if (SettingsService.instance.vibrationEnabled) {
+            HapticFeedback.lightImpact();
+          }
           Navigator.of(context).pop();
         },
         child: const Padding(
@@ -348,16 +364,31 @@ class _TimerScreenState extends State<TimerScreen>
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(color: const Color(0xFFE0E0E0), width: 1.5),
               ),
-              child: const Center(
-                child: Text(
-                  'Reset',
-                  style: TextStyle(
-                    fontFamily: 'geist',
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                    color: AppColors.black75,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Text(
+                    // Reset {default time} min/sec
+                    'Reset',
+                    style: TextStyle(
+                      fontFamily: 'geist',
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.black75,
+                    ),
                   ),
-                ),
+                  Text(
+                    // Reset {default time} min/sec
+                    '(${SettingsService.instance.timerDuration / 60} min)',
+                    style: TextStyle(
+                      fontFamily: 'geist',
+                      fontSize: 10,
+                      fontWeight: FontWeight.w500,
+                      color: AppColors.black75,
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
