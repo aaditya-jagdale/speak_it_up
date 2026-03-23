@@ -46,9 +46,13 @@ dependencies:
   screenshot: ^3.0.0
   package_info_plus: ^9.0.0
   dio: ^5.9.0
+  shared_preferences: ^2.3.5
   flutter_animate: ^4.5.0
   intl: ^0.20.2
   audioplayers: ^6.5.0
+  text_to_speech: ^0.2.3
+  translator: ^1.0.4+1
+  fluttertoast: ^9.0.0
 
 dev_dependencies:
   flutter_test:
