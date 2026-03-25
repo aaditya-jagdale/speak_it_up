@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:speak_it_up/home/screens/home_screen.dart';
 import 'package:speak_it_up/shared/services/settings_service.dart';
@@ -15,7 +14,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      debugShowCheckedModeBanner: kDebugMode,
+      debugShowCheckedModeBanner: false,
       title: 'Speak it up',
       theme: ThemeData(
         colorScheme: .fromSeed(seedColor: Colors.deepPurple),

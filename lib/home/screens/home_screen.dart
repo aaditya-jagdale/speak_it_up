@@ -133,8 +133,16 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     // ── Announce winning topic via TTS ─────────────────────────────────
     // Play sound effect assets/audio/sparkle.mp3
     if (SettingsService.instance.soundEnabled) {
-      await AudioPlayer().play(AssetSource('audio/sparkle.mp3'));
-      await TtsService.instance.announceTopicAsync(_topic(0));
+      try {
+        await TtsService.instance.announceTopicAsync(_topic(0));
+      } catch (e) {
+        debugPrint(e.toString());
+      }
+      try {
+        await AudioPlayer().play(AssetSource('audio/sparkle.mp3'));
+      } catch (e) {
+        debugPrint(e.toString());
+      }
     }
   }
 

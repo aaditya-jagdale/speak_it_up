@@ -1,7 +1,10 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:speak_it_up/shared/services/settings_service.dart';
 import 'package:speak_it_up/shared/widgets/colors.dart';
+import 'package:url_launcher/url_launcher_string.dart';
 
 // ── Language model ────────────────────────────────────────────────────────────
 
@@ -155,13 +158,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
               const SizedBox(height: 32),
 
               // ── Language section ─────────────────────────────────────────
-              _buildSectionLabel('Announcement Language'),
-              const SizedBox(height: 4),
-              _buildSectionSublabel('Voice used when announcing the topic'),
-              const SizedBox(height: 12),
-              _buildLanguagePicker(),
-
-              const SizedBox(height: 32),
+              if (Platform.isAndroid) ...[
+                _buildSectionLabel('Announcement Language'),
+                const SizedBox(height: 4),
+                _buildSectionSublabel('Voice used when announcing the topic'),
+                const SizedBox(height: 12),
+                _buildLanguagePicker(),
+                const SizedBox(height: 32),
+              ],
 
               // ── Timer section ────────────────────────────────────────────
               _buildSectionLabel('Default Timer Duration'),
@@ -171,6 +175,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
               _buildDurationPicker(),
 
               const SizedBox(height: 40),
+              Center(
+                child: GestureDetector(
+                  onTap: () {
+                    launchUrlString("https://x.com/aaditya_fr");
+                  },
+                  child: Text(
+                    "Creation of @aaditya_fr",
+                    style: TextStyle(
+                      fontFamily: 'geist',
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.black50,
+                      letterSpacing: 0.6,
+                    ),
+                  ),
+                ),
+              ),
             ],
           ),
         ),
