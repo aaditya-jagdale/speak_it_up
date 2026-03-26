@@ -128,71 +128,78 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
         centerTitle: false,
       ),
-      body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const SizedBox(height: 24),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: 600),
+          child: SafeArea(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const SizedBox(height: 24),
 
-              // ── Preferences section ──────────────────────────────────────
-              _buildSectionLabel('Preferences'),
-              const SizedBox(height: 12),
-              _buildToggleCard(
-                icon: Icons.volume_up_rounded,
-                label: 'Sound',
-                sublabel: 'Announce topic aloud when spinning',
-                value: _soundEnabled,
-                onChanged: _toggleSound,
-              ),
-              const SizedBox(height: 10),
-              _buildToggleCard(
-                icon: Icons.vibration_rounded,
-                label: 'Vibrations',
-                sublabel: 'Haptic feedback on interactions',
-                value: _vibrationEnabled,
-                onChanged: _toggleVibration,
-              ),
+                  // ── Preferences section ──────────────────────────────────────
+                  _buildSectionLabel('Preferences'),
+                  const SizedBox(height: 12),
+                  _buildToggleCard(
+                    icon: Icons.volume_up_rounded,
+                    label: 'Sound',
+                    sublabel: 'Announce topic aloud when spinning',
+                    value: _soundEnabled,
+                    onChanged: _toggleSound,
+                  ),
+                  const SizedBox(height: 10),
+                  _buildToggleCard(
+                    icon: Icons.vibration_rounded,
+                    label: 'Vibrations',
+                    sublabel: 'Haptic feedback on interactions',
+                    value: _vibrationEnabled,
+                    onChanged: _toggleVibration,
+                  ),
 
-              const SizedBox(height: 32),
+                  const SizedBox(height: 32),
 
-              // ── Language section ─────────────────────────────────────────
-              if (Platform.isAndroid) ...[
-                _buildSectionLabel('Announcement Language'),
-                const SizedBox(height: 4),
-                _buildSectionSublabel('Voice used when announcing the topic'),
-                const SizedBox(height: 12),
-                _buildLanguagePicker(),
-                const SizedBox(height: 32),
-              ],
+                  // ── Language section ─────────────────────────────────────────
+                  if (Platform.isAndroid) ...[
+                    _buildSectionLabel('Announcement Language'),
+                    const SizedBox(height: 4),
+                    _buildSectionSublabel(
+                      'Voice used when announcing the topic',
+                    ),
+                    const SizedBox(height: 12),
+                    _buildLanguagePicker(),
+                    const SizedBox(height: 32),
+                  ],
 
-              // ── Timer section ────────────────────────────────────────────
-              _buildSectionLabel('Default Timer Duration'),
-              const SizedBox(height: 4),
-              _buildSectionSublabel('How long each speaking session lasts'),
-              const SizedBox(height: 12),
-              _buildDurationPicker(),
+                  // ── Timer section ────────────────────────────────────────────
+                  _buildSectionLabel('Default Timer Duration'),
+                  const SizedBox(height: 4),
+                  _buildSectionSublabel('How long each speaking session lasts'),
+                  const SizedBox(height: 12),
+                  _buildDurationPicker(),
 
-              const SizedBox(height: 40),
-              Center(
-                child: GestureDetector(
-                  onTap: () {
-                    launchUrlString("https://x.com/aaditya_fr");
-                  },
-                  child: Text(
-                    "Creation of @aaditya_fr",
-                    style: TextStyle(
-                      fontFamily: 'geist',
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.black50,
-                      letterSpacing: 0.6,
+                  const SizedBox(height: 40),
+                  Center(
+                    child: GestureDetector(
+                      onTap: () {
+                        launchUrlString("https://x.com/aaditya_fr");
+                      },
+                      child: Text(
+                        "Creation of @aaditya_fr",
+                        style: TextStyle(
+                          fontFamily: 'geist',
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.black50,
+                          letterSpacing: 0.6,
+                        ),
+                      ),
                     ),
                   ),
-                ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),

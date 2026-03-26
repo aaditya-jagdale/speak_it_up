@@ -168,38 +168,43 @@ class _TimerScreenState extends State<TimerScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFFAFAFA),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const SizedBox(height: 24),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: 700),
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const SizedBox(height: 24),
 
-              // ── Back arrow ────────────────────────────────────────────────────
-              _buildBackRow(),
-              const SizedBox(height: 32),
+                  // ── Back arrow ────────────────────────────────────────────────────
+                  _buildBackRow(),
+                  const SizedBox(height: 32),
 
-              // ── Topic display ─────────────────────────────────────────────────
-              _buildTopicDisplay(),
-              const SizedBox(height: 48),
+                  // ── Topic display ─────────────────────────────────────────────────
+                  _buildTopicDisplay(),
+                  const SizedBox(height: 48),
 
-              // ── Circular timer ────────────────────────────────────────────────
-              Expanded(child: _buildCircularTimer()),
-              const SizedBox(height: 32),
+                  // ── Circular timer ────────────────────────────────────────────────
+                  Expanded(child: _buildCircularTimer()),
+                  const SizedBox(height: 32),
 
-              // ── Adjust row (+/-30s) ───────────────────────────────────────────
-              if (!_isRunning) _buildAdjustRow(),
-              const SizedBox(height: 16),
+                  // ── Adjust row (+/-30s) ───────────────────────────────────────────
+                  if (!_isRunning) _buildAdjustRow(),
+                  const SizedBox(height: 16),
 
-              // ── Main Start / Stop button ──────────────────────────────────────
-              _buildMainButton(),
-              const SizedBox(height: 12),
+                  // ── Main Start / Stop button ──────────────────────────────────────
+                  _buildMainButton(),
+                  const SizedBox(height: 12),
 
-              // ── Secondary row (Reset + New Topic) ────────────────────────────
-              _buildSecondaryRow(),
-              const SizedBox(height: 24),
-            ],
+                  // ── Secondary row (Reset + New Topic) ────────────────────────────
+                  _buildSecondaryRow(),
+                  const SizedBox(height: 24),
+                ],
+              ),
+            ),
           ),
         ),
       ),

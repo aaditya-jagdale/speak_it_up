@@ -188,40 +188,45 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
           const SizedBox(width: 6),
         ],
       ),
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const SizedBox(height: 24),
+      body: Center(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: 600),
+          child: SafeArea(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const SizedBox(height: 24),
 
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    // ── Title ──────────────────────────────────────────────
-                    _buildTitle(),
-                    const SizedBox(height: 32),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        // ── Title ──────────────────────────────────────────────
+                        _buildTitle(),
+                        const SizedBox(height: 32),
 
-                    // ── 3-step cards ───────────────────────────────────────
-                    _buildStepCards(),
-                    const SizedBox(height: 60),
+                        // ── 3-step cards ───────────────────────────────────────
+                        _buildStepCards(),
+                        const SizedBox(height: 60),
 
-                    // ── Slot machine ───────────────────────────────────────
-                    _buildSlotMachine(),
-                    const SizedBox(height: 24),
-                  ],
-                ),
+                        // ── Slot machine ───────────────────────────────────────
+                        _buildSlotMachine(),
+                        const SizedBox(height: 24),
+                      ],
+                    ),
+                  ),
+
+                  // ── Bottom action buttons ─────────────────────────────
+                  _buildActionButtons(),
+
+                  const SizedBox(height: 16),
+                ],
               ),
-
-              // ── Bottom action buttons ─────────────────────────────
-              _buildActionButtons(),
-
-              const SizedBox(height: 16),
-            ],
+            ),
           ),
         ),
       ),
