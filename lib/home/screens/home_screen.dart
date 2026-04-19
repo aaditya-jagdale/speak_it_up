@@ -30,6 +30,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
   bool _isSpinning = false;
   late final AnimationController _reelController;
   late final Animation<double> _reelAnim;
+  final AudioPlayer _sfxPlayer = AudioPlayer(playerId: 'spin_sfx');
 
   static const double _itemHeight = 60.0;
 
@@ -48,6 +49,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     _reelAnim = Tween<double>(begin: 0, end: -_itemHeight).animate(
       CurvedAnimation(parent: _reelController, curve: Curves.easeInOut),
     );
+    unawaited(_sfxPlayer.setReleaseMode(ReleaseMode.stop));
 
     if (mounted) {
       UpdateService.instance.checkForUpdate(context);
@@ -56,6 +58,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
 
   @override
   void dispose() {
+    _sfxPlayer.dispose();
     _reelController.dispose();
     super.dispose();
   }
@@ -80,6 +83,19 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
     if (SettingsService.instance.vibrationEnabled) HapticFeedback.lightImpact();
     await SettingsService.instance.setSoundEnabled(value);
     setState(() {});
+  }
+
+  Future<void> _playSpinSound() async {
+    try {
+      // Verify the asset exists before trying to play it.
+      await rootBundle.load('assets/audio/sparkle.mp3');
+      await _sfxPlayer.stop();
+      await _sfxPlayer.play(AssetSource('assets/audio/sparkle.mp3'));
+      return;
+    } catch (_) {
+      // Fallback to system click if asset is missing.
+    }
+    await SystemSound.play(SystemSoundType.click);
   }
 
   Future<void> _spin() async {
@@ -139,7 +155,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
         debugPrint(e.toString());
       }
       try {
-        await AudioPlayer().play(AssetSource('audio/sparkle.mp3'));
+        await _playSpinSound();
       } catch (e) {
         debugPrint(e.toString());
       }
